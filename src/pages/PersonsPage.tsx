@@ -13,50 +13,29 @@ export default function PersonsPage() {
   const { data, addPerson, updatePerson, deletePerson } = useStore()
   const [mode, setMode] = useState<Mode>({ type: 'none' })
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [callMeBotKey, setCallMeBotKey] = useState('')
   const [avatar, setAvatar] = useState(PERSON_AVATARS[0])
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [testStatus, setTestStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
 
   function openAdd() {
     setName('')
-    setPhone('')
-    setCallMeBotKey('')
     setAvatar(PERSON_AVATARS[0])
-    setTestStatus('idle')
     setMode({ type: 'add' })
   }
 
   function openEdit(person: Person) {
     setName(person.name)
-    setPhone(person.phone)
-    setCallMeBotKey(person.callMeBotKey)
     setAvatar(person.avatar)
-    setTestStatus('idle')
     setMode({ type: 'edit', person })
   }
 
   function save() {
     if (!name.trim()) return
     if (mode.type === 'add') {
-      addPerson({ name: name.trim(), phone: phone.trim(), callMeBotKey: callMeBotKey.trim(), avatar })
+      addPerson({ name: name.trim(), avatar, phone: '', callMeBotKey: '' })
     } else if (mode.type === 'edit') {
-      updatePerson(mode.person.id, { name: name.trim(), phone: phone.trim(), callMeBotKey: callMeBotKey.trim(), avatar })
+      updatePerson(mode.person.id, { name: name.trim(), avatar })
     }
     setMode({ type: 'none' })
-  }
-
-  async function testWhatsApp() {
-    if (!phone || !callMeBotKey) return
-    setTestStatus('sending')
-    try {
-      const text = encodeURIComponent('🏠 Haushaltsapp Test – WhatsApp funktioniert!')
-      await fetch(`https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${text}&apikey=${callMeBotKey}`, { mode: 'no-cors' })
-      setTestStatus('sent')
-    } catch {
-      setTestStatus('error')
-    }
   }
 
   const taskCount = (personId: string) =>
@@ -89,13 +68,6 @@ export default function PersonsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-white">{person.name}</div>
-                  <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                    {person.phone ? (
-                      <span className="flex items-center gap-1">📱 {person.phone}</span>
-                    ) : (
-                      <span className="text-amber-400">Kein WhatsApp eingerichtet</span>
-                    )}
-                  </div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {count === 0 ? 'Keine offenen Aufgaben' : `${count} offene Aufgabe${count !== 1 ? 'n' : ''}`}
                   </div>
@@ -143,41 +115,6 @@ export default function PersonsPage() {
             <div>
               <p className="text-sm font-medium text-slate-300 mb-2">Avatar</p>
               <EmojiPicker options={PERSON_AVATARS} value={avatar} onChange={setAvatar} />
-            </div>
-            <div className="border-t border-slate-700 pt-4">
-              <p className="text-sm font-semibold text-slate-200 mb-1">WhatsApp-Benachrichtigungen</p>
-              <p className="text-xs text-slate-400 mb-4">
-                Sende einmalig <span className="text-white font-mono">"I allow callmebot to send me messages"</span> an{' '}
-                <span className="text-green-400 font-mono">+34 644 44 10 26</span> auf WhatsApp. Der Bot antwortet mit deinem API-Key.
-              </p>
-              <div className="space-y-3">
-                <Input
-                  label="Handynummer (mit Ländervorwahl)"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+491234567890"
-                  type="tel"
-                />
-                <Input
-                  label="CallMeBot API-Key"
-                  value={callMeBotKey}
-                  onChange={(e) => setCallMeBotKey(e.target.value)}
-                  placeholder="Vom Bot erhaltener Key"
-                />
-                {phone && callMeBotKey && (
-                  <Button
-                    variant="secondary"
-                    onClick={testWhatsApp}
-                    disabled={testStatus === 'sending'}
-                    fullWidth
-                  >
-                    {testStatus === 'idle' && '📨 Test-Nachricht senden'}
-                    {testStatus === 'sending' && '⏳ Wird gesendet…'}
-                    {testStatus === 'sent' && '✅ Gesendet! Nachricht prüfen'}
-                    {testStatus === 'error' && '❌ Fehler beim Senden'}
-                  </Button>
-                )}
-              </div>
             </div>
           </div>
         </Modal>

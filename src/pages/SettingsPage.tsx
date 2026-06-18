@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '../store'
 import { GitHubService } from '../services/github'
+import { requestNotificationPermission } from '../services/notifications'
 import Button from '../components/Button'
 import Input from '../components/Input'
 
@@ -9,8 +10,15 @@ export default function SettingsPage() {
   const [token, setToken] = useState(settings.githubToken)
   const [gistId, setGistId] = useState(settings.gistId)
   const [tokenStatus, setTokenStatus] = useState<'idle' | 'checking' | 'ok' | 'error'>('idle')
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default')
   const [createStatus, setCreateStatus] = useState<'idle' | 'creating' | 'done' | 'error'>('idle')
   const [newGistId, setNewGistId] = useState('')
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotifPermission(Notification.permission)
+    }
+  }, [])
 
   async function validateToken() {
     if (!token.trim()) return
@@ -30,6 +38,11 @@ export default function SettingsPage() {
     } catch {
       setCreateStatus('error')
     }
+  }
+
+  async function requestNotifications() {
+    const granted = await requestNotificationPermission()
+    setNotifPermission(granted ? 'granted' : 'denied')
   }
 
   function saveSettings() {
@@ -66,6 +79,32 @@ export default function SettingsPage() {
             <div className="text-xs text-slate-400">{s.label}</div>
           </div>
         ))}
+      </div>
+
+      {/* Notifications */}
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🔔</span>
+          <h2 className="font-semibold text-white flex-1">Browser-Benachrichtigungen</h2>
+          {notifPermission === 'granted' && <span className="text-xs text-emerald-400">✓ Aktiviert</span>}
+          {notifPermission === 'denied' && <span className="text-xs text-red-400">Blockiert</span>}
+        </div>
+
+        <p className="text-xs text-slate-400">
+          Erhalte native Handy-Benachrichtigungen wenn heute Aufgaben fällig sind. Funktioniert auch wenn die App geschlossen ist.
+        </p>
+
+        {notifPermission === 'default' && (
+          <Button onClick={requestNotifications} variant="secondary" fullWidth>
+            Benachrichtigungen aktivieren
+          </Button>
+        )}
+
+        {notifPermission === 'denied' && (
+          <p className="text-xs text-red-400 bg-red-900/20 rounded-xl px-3 py-2">
+            Benachrichtigungen sind blockiert. Aktiviere sie in den Browser-Einstellungen.
+          </p>
+        )}
       </div>
 
       {/* GitHub Sync */}
@@ -167,7 +206,7 @@ export default function SettingsPage() {
       <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-2 text-xs text-slate-400">
         <p className="font-medium text-slate-300">Haushaltsorganisation</p>
         <p>Version 1.0 · PWA · Daten lokal + GitHub Gist</p>
-        <p>WhatsApp-Benachrichtigungen via CallMeBot</p>
+        <p>Browser-Benachrichtigungen für Aufgaben</p>
       </div>
     </div>
   )

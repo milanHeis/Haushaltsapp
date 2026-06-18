@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useStore } from './store'
+import { registerPeriodicSync } from './services/notifications'
 import TodayPage from './pages/TodayPage'
 import RoomsPage from './pages/RoomsPage'
 import TasksPage from './pages/TasksPage'
@@ -17,6 +18,7 @@ export default function App() {
     if (settings.githubToken && settings.gistId) {
       syncFromGitHub()
     }
+    registerPeriodicSync()
   }, [])
 
   const today = new Date().toISOString().slice(0, 10)

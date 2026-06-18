@@ -1,13 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store'
-import { sendBulkNotifications } from '../services/whatsapp'
+import { checkAndNotifyTodayTasks } from '../services/notifications'
 import { RECURRING_LABELS } from '../types'
 import Button from '../components/Button'
 
 export default function TodayPage() {
-  const { data, completeTask, uncompleteTask } = useStore()
+  const { data } = useStore()
   const [notifStatus, setNotifStatus] = useState<'idle' | 'sending' | 'done'>('idle')
-  const [notifResult, setNotifResult] = useState({ sent: 0, failed: 0 })
+  const [notifCount, setNotifCount] = useState(0)
+
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      checkAndNotifyTodayTasks(data.tasks, data.rooms, data.persons).then(setNotifCount)
+    }
+  }, [])
 
   const today = new Date().toISOString().slice(0, 10)
   const todayTasks = data.tasks.filter((t) => t.dueDate === today && !t.completed)
@@ -18,8 +24,8 @@ export default function TodayPage() {
 
   async function sendNotifications() {
     setNotifStatus('sending')
-    const result = await sendBulkNotifications(data.tasks, data.persons, data.rooms)
-    setNotifResult(result)
+    const count = await checkAndNotifyTodayTasks(data.tasks, data.rooms, data.persons)
+    setNotifCount(count)
     setNotifStatus('done')
   }
 
@@ -49,7 +55,6 @@ export default function TodayPage() {
                   task={task}
                   room={room}
                   persons={data.persons.filter((p) => task.assignedTo.includes(p.id))}
-                  onComplete={() => completeTask(task.id)}
                   overdue
                 />
               )
@@ -86,7 +91,6 @@ export default function TodayPage() {
                         task={task}
                         room={room}
                         persons={data.persons.filter((p) => task.assignedTo.includes(p.id))}
-                        onComplete={() => completeTask(task.id)}
                       />
                     )
                   })}
@@ -109,7 +113,6 @@ export default function TodayPage() {
                       task={task}
                       room={room}
                       persons={[]}
-                      onComplete={() => completeTask(task.id)}
                     />
                   )
                 })}
@@ -133,7 +136,6 @@ export default function TodayPage() {
                   task={task}
                   room={room}
                   persons={data.persons.filter((p) => task.assignedTo.includes(p.id))}
-                  onComplete={() => uncompleteTask(task.id)}
                   completed
                 />
               )
@@ -142,7 +144,7 @@ export default function TodayPage() {
         </section>
       )}
 
-      {(todayTasks.length > 0 || overdueOpen.length > 0) && data.persons.some((p) => p.callMeBotKey) && (
+      {(todayTasks.length > 0 || overdueOpen.length > 0) && Notification.permission === 'granted' && (
         <div className="mt-4 pt-4 border-t border-slate-700">
           <Button
             onClick={sendNotifications}
@@ -150,12 +152,12 @@ export default function TodayPage() {
             variant="secondary"
             fullWidth
           >
-            {notifStatus === 'idle' && '📨 WhatsApp-Benachrichtigungen senden'}
+            {notifStatus === 'idle' && '🔔 Benachrichtigungen senden'}
             {notifStatus === 'sending' && '⏳ Wird gesendet…'}
-            {notifStatus === 'done' && `✅ ${notifResult.sent} gesendet${notifResult.failed > 0 ? `, ${notifResult.failed} fehlgeschlagen` : ''}`}
+            {notifStatus === 'done' && `✅ ${notifCount} gesendet`}
           </Button>
           <p className="text-xs text-slate-500 text-center mt-2">
-            Sendet eine WhatsApp-Nachricht an alle Personen mit heutigen Aufgaben
+            Sendet eine Benachrichtigung an alle Personen mit Aufgaben heute
           </p>
         </div>
       )}
@@ -167,12 +169,13 @@ interface TodayTaskCardProps {
   task: import('../types').Task
   room: import('../types').Room | undefined
   persons: import('../types').Person[]
-  onComplete: () => void
   completed?: boolean
   overdue?: boolean
 }
 
-function TodayTaskCard({ task, room, persons, onComplete, completed, overdue }: TodayTaskCardProps) {
+function TodayTaskCard({ task, room, persons, completed, overdue }: TodayTaskCardProps) {
+  const { completeTask, uncompleteTask } = useStore()
+
   return (
     <div className={`flex items-center gap-3 rounded-2xl p-4 border ${
       completed
@@ -182,7 +185,7 @@ function TodayTaskCard({ task, room, persons, onComplete, completed, overdue }: 
         : 'bg-slate-800 border-slate-700'
     }`}>
       <button
-        onClick={onComplete}
+        onClick={() => completed ? uncompleteTask(task.id) : completeTask(task.id)}
         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all active:scale-90 ${
           completed
             ? 'bg-emerald-500 border-emerald-500 text-white'

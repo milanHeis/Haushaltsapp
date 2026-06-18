@@ -10,9 +10,9 @@ export interface Room {
 export interface Person {
   id: string
   name: string
-  phone: string      // WhatsApp number e.g. "+49123456789"
-  callMeBotKey: string
   avatar: string     // emoji
+  phone?: string     // deprecated: WhatsApp number
+  callMeBotKey?: string  // deprecated: CallMeBot API key
 }
 
 export interface Task {
